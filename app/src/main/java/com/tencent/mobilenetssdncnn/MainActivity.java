@@ -30,30 +30,31 @@ import android.widget.ImageView;
 
 import java.io.FileNotFoundException;
 
-public class MainActivity extends Activity
-{
+public class MainActivity extends Activity {
     private static final int SELECT_IMAGE = 1;
 
     private ImageView imageView;
+    private ImageView imageViewResult;
     private Bitmap bitmap = null;
     private Bitmap yourSelectedImage = null;
 
     private MobilenetSSDNcnn mobilenetssdncnn = new MobilenetSSDNcnn();
 
-    /** Called when the activity is first created. */
+    /**
+     * Called when the activity is first created.
+     */
     @Override
-    public void onCreate(Bundle savedInstanceState)
-    {
+    public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
 
         boolean ret_init = mobilenetssdncnn.Init(getAssets());
-        if (!ret_init)
-        {
+        if (!ret_init) {
             Log.e("MainActivity", "mobilenetssdncnn Init failed");
         }
 
         imageView = (ImageView) findViewById(R.id.imageView);
+        imageViewResult = (ImageView) findViewById(R.id.imageViewResult);
 
         Button buttonImage = (Button) findViewById(R.id.buttonImage);
         buttonImage.setOnClickListener(new View.OnClickListener() {
@@ -69,11 +70,17 @@ public class MainActivity extends Activity
         buttonDetect.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View arg0) {
-                if (yourSelectedImage == null)
+                if (yourSelectedImage == null) {
+                    Log.d("TTT-CPU", "no image!!!");
                     return;
+                }
+                imageViewResult.setImageDrawable(null);
+                imageViewResult.postInvalidate();
 
+                long t0 = System.currentTimeMillis();
                 MobilenetSSDNcnn.Obj[] objects = mobilenetssdncnn.Detect(yourSelectedImage, false);
-
+                long t1 = System.currentTimeMillis();
+                Log.d("TTT-CPU", "After DETECT " + (t1 - t0));
                 showObjects(objects);
             }
         });
@@ -82,21 +89,24 @@ public class MainActivity extends Activity
         buttonDetectGPU.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View arg0) {
-                if (yourSelectedImage == null)
+                if (yourSelectedImage == null) {
+                    Log.d("TTT-GPU", "no image!!!");
                     return;
+                }
+                imageViewResult.setImageDrawable(null);
 
+                long t0 = System.currentTimeMillis();
                 MobilenetSSDNcnn.Obj[] objects = mobilenetssdncnn.Detect(yourSelectedImage, true);
-
+                long t1 = System.currentTimeMillis();
+                Log.d("TTT-GPU", "After DETECT " + (t1 - t0));
                 showObjects(objects);
             }
         });
     }
 
-    private void showObjects(MobilenetSSDNcnn.Obj[] objects)
-    {
-        if (objects == null)
-        {
-            imageView.setImageBitmap(bitmap);
+    private void showObjects(MobilenetSSDNcnn.Obj[] objects) {
+        if (objects == null) {
+            imageViewResult.setImageBitmap(bitmap);
             return;
         }
 
@@ -119,8 +129,7 @@ public class MainActivity extends Activity
         textpaint.setTextSize(26);
         textpaint.setTextAlign(Paint.Align.LEFT);
 
-        for (int i = 0; i < objects.length; i++)
-        {
+        for (int i = 0; i < objects.length; i++) {
             canvas.drawRect(objects[i].x, objects[i].y, objects[i].x + objects[i].w, objects[i].y + objects[i].h, paint);
 
             // draw filled text inside image
@@ -128,7 +137,7 @@ public class MainActivity extends Activity
                 String text = objects[i].label + " = " + String.format("%.1f", objects[i].prob * 100) + "%";
 
                 float text_width = textpaint.measureText(text);
-                float text_height = - textpaint.ascent() + textpaint.descent();
+                float text_height = -textpaint.ascent() + textpaint.descent();
 
                 float x = objects[i].x;
                 float y = objects[i].y - text_height;
@@ -143,37 +152,33 @@ public class MainActivity extends Activity
             }
         }
 
-        imageView.setImageBitmap(rgba);
+        imageViewResult.setImageBitmap(rgba);
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data)
-    {
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
         if (resultCode == RESULT_OK && null != data) {
             Uri selectedImage = data.getData();
 
-            try
-            {
+            try {
                 if (requestCode == SELECT_IMAGE) {
                     bitmap = decodeUri(selectedImage);
 
                     yourSelectedImage = bitmap.copy(Bitmap.Config.ARGB_8888, true);
 
                     imageView.setImageBitmap(bitmap);
+                    imageViewResult.setImageDrawable(null);
                 }
-            }
-            catch (FileNotFoundException e)
-            {
+            } catch (FileNotFoundException e) {
                 Log.e("MainActivity", "FileNotFoundException");
                 return;
             }
         }
     }
 
-    private Bitmap decodeUri(Uri selectedImage) throws FileNotFoundException
-    {
+    private Bitmap decodeUri(Uri selectedImage) throws FileNotFoundException {
         // Decode image size
         BitmapFactory.Options o = new BitmapFactory.Options();
         o.inJustDecodeBounds = true;
@@ -187,7 +192,7 @@ public class MainActivity extends Activity
         int scale = 1;
         while (true) {
             if (width_tmp / 2 < REQUIRED_SIZE
-               || height_tmp / 2 < REQUIRED_SIZE) {
+                    || height_tmp / 2 < REQUIRED_SIZE) {
                 break;
             }
             width_tmp /= 2;
