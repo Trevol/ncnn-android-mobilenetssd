@@ -38,7 +38,7 @@ public class MainActivity extends Activity {
     private Bitmap bitmap = null;
     private Bitmap yourSelectedImage = null;
 
-    private MobilenetSSDNcnn mobilenetssdncnn = new MobilenetSSDNcnn();
+    private MobilenetV2SSDliteNcnn ncnn = new MobilenetV2SSDliteNcnn();
 
     /**
      * Called when the activity is first created.
@@ -48,9 +48,11 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
 
-        boolean ret_init = mobilenetssdncnn.Init(getAssets());
+
+        boolean ret_init = ncnn.Init(getAssets());
         if (!ret_init) {
             Log.e("MainActivity", "mobilenetssdncnn Init failed");
+            finish();
         }
 
         imageView = (ImageView) findViewById(R.id.imageView);
@@ -78,7 +80,7 @@ public class MainActivity extends Activity {
                 imageViewResult.postInvalidate();
 
                 long t0 = System.currentTimeMillis();
-                MobilenetSSDNcnn.Obj[] objects = mobilenetssdncnn.Detect(yourSelectedImage, false);
+                Obj[] objects = ncnn.Detect(yourSelectedImage, false);
                 long t1 = System.currentTimeMillis();
                 Log.d("TTT-CPU", "After DETECT " + (t1 - t0));
                 showObjects(objects);
@@ -96,7 +98,7 @@ public class MainActivity extends Activity {
                 imageViewResult.setImageDrawable(null);
 
                 long t0 = System.currentTimeMillis();
-                MobilenetSSDNcnn.Obj[] objects = mobilenetssdncnn.Detect(yourSelectedImage, true);
+                Obj[] objects = ncnn.Detect(yourSelectedImage, true);
                 long t1 = System.currentTimeMillis();
                 Log.d("TTT-GPU", "After DETECT " + (t1 - t0));
                 showObjects(objects);
@@ -104,7 +106,7 @@ public class MainActivity extends Activity {
         });
     }
 
-    private void showObjects(MobilenetSSDNcnn.Obj[] objects) {
+    private void showObjects(Obj[] objects) {
         if (objects == null) {
             imageViewResult.setImageBitmap(bitmap);
             return;

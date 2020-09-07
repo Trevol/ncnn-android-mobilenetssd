@@ -1,4 +1,4 @@
-project(mobilenetssdncnn)
+project(ncnndetectors)
 
 cmake_minimum_required(VERSION 3.4.1)
 
@@ -35,9 +35,10 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden -fvisibility-inlines
 # disable rtti and exceptions
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -fno-exceptions")
 
-add_library(mobilenetssdncnn SHARED mobilenetssdncnn_jni.cpp)
+add_library(ncnndetectors SHARED Object.h mobilenetssdncnn_jni.cpp mobilenetv2ssdlitencnn_jni.cpp ncnn_lifecycle.cpp)
+#add_library(ncnndetectors SHARED mobilenetv2ssdlitencnn_jni.cpp)
 
-target_link_libraries(mobilenetssdncnn
+target_link_libraries(ncnndetectors
     ncnn
 
     glslang SPIRV OGLCompiler OSDependent

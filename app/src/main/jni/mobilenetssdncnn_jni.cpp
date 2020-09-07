@@ -24,53 +24,20 @@
 // ncnn
 #include "net.h"
 #include "benchmark.h"
-
-static ncnn::UnlockedPoolAllocator g_blob_pool_allocator;
-static ncnn::PoolAllocator g_workspace_pool_allocator;
+#include "Object.h"
 
 static ncnn::Net mobilenetssd;
 
-struct Object
-{
-    float x;
-    float y;
-    float w;
-    float h;
-    int label;
-    float prob;
-};
+
 
 extern "C" {
-
-// FIXME DeleteGlobalRef is missing for objCls
-static jclass objCls = NULL;
-static jmethodID constructortorId;
-static jfieldID xId;
-static jfieldID yId;
-static jfieldID wId;
-static jfieldID hId;
-static jfieldID labelId;
-static jfieldID probId;
-
-JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
-{
-    __android_log_print(ANDROID_LOG_DEBUG, "MobilenetSSDNcnn", "JNI_OnLoad");
-
-    ncnn::create_gpu_instance();
-
-    return JNI_VERSION_1_4;
-}
-
-JNIEXPORT void JNI_OnUnload(JavaVM* vm, void* reserved)
-{
-    __android_log_print(ANDROID_LOG_DEBUG, "MobilenetSSDNcnn", "JNI_OnUnload");
-
-    ncnn::destroy_gpu_instance();
-}
 
 // public native boolean Init(AssetManager mgr);
 JNIEXPORT jboolean JNICALL Java_com_tencent_mobilenetssdncnn_MobilenetSSDNcnn_Init(JNIEnv* env, jobject thiz, jobject assetManager)
 {
+    static ncnn::UnlockedPoolAllocator g_blob_pool_allocator;
+    static ncnn::PoolAllocator g_workspace_pool_allocator;
+
     ncnn::Option opt;
     opt.lightmode = true;
     opt.num_threads = 4;
@@ -107,17 +74,17 @@ JNIEXPORT jboolean JNICALL Java_com_tencent_mobilenetssdncnn_MobilenetSSDNcnn_In
     }
 
     // init jni glue
-    jclass localObjCls = env->FindClass("com/tencent/mobilenetssdncnn/MobilenetSSDNcnn$Obj");
-    objCls = reinterpret_cast<jclass>(env->NewGlobalRef(localObjCls));
+    jclass localObjCls = env->FindClass("com/tencent/mobilenetssdncnn/Obj");
+    objectMeta.objCls = reinterpret_cast<jclass>(env->NewGlobalRef(localObjCls));
 
-    constructortorId = env->GetMethodID(objCls, "<init>", "(Lcom/tencent/mobilenetssdncnn/MobilenetSSDNcnn;)V");
+    objectMeta.constructorId = env->GetMethodID(objectMeta.objCls, "<init>", "(Lcom/tencent/mobilenetssdncnn/Obj;)V");
 
-    xId = env->GetFieldID(objCls, "x", "F");
-    yId = env->GetFieldID(objCls, "y", "F");
-    wId = env->GetFieldID(objCls, "w", "F");
-    hId = env->GetFieldID(objCls, "h", "F");
-    labelId = env->GetFieldID(objCls, "label", "Ljava/lang/String;");
-    probId = env->GetFieldID(objCls, "prob", "F");
+    objectMeta.xId = env->GetFieldID(objectMeta.objCls, "x", "F");
+    objectMeta.yId = env->GetFieldID(objectMeta.objCls, "y", "F");
+    objectMeta.wId = env->GetFieldID(objectMeta.objCls, "w", "F");
+    objectMeta.hId = env->GetFieldID(objectMeta.objCls, "h", "F");
+    objectMeta.labelId = env->GetFieldID(objectMeta.objCls, "label", "Ljava/lang/String;");
+    objectMeta.probId = env->GetFieldID(objectMeta.objCls, "prob", "F");
 
     return JNI_TRUE;
 }
@@ -183,18 +150,18 @@ JNIEXPORT jobjectArray JNICALL Java_com_tencent_mobilenetssdncnn_MobilenetSSDNcn
         "motorbike", "person", "pottedplant",
         "sheep", "sofa", "train", "tvmonitor"};
 
-    jobjectArray jObjArray = env->NewObjectArray(objects.size(), objCls, NULL);
+    jobjectArray jObjArray = env->NewObjectArray(objects.size(), objectMeta.objCls, NULL);
 
     for (size_t i=0; i<objects.size(); i++)
     {
-        jobject jObj = env->NewObject(objCls, constructortorId, thiz);
+        jobject jObj = env->NewObject(objectMeta.objCls, objectMeta.constructorId, thiz);
 
-        env->SetFloatField(jObj, xId, objects[i].x);
-        env->SetFloatField(jObj, yId, objects[i].y);
-        env->SetFloatField(jObj, wId, objects[i].w);
-        env->SetFloatField(jObj, hId, objects[i].h);
-        env->SetObjectField(jObj, labelId, env->NewStringUTF(class_names[objects[i].label]));
-        env->SetFloatField(jObj, probId, objects[i].prob);
+        env->SetFloatField(jObj, objectMeta.xId, objects[i].x);
+        env->SetFloatField(jObj, objectMeta.yId, objects[i].y);
+        env->SetFloatField(jObj, objectMeta.wId, objects[i].w);
+        env->SetFloatField(jObj, objectMeta.hId, objects[i].h);
+        env->SetObjectField(jObj, objectMeta.labelId, env->NewStringUTF(class_names[objects[i].label]));
+        env->SetFloatField(jObj, objectMeta.probId, objects[i].prob);
 
         env->SetObjectArrayElement(jObjArray, i, jObj);
     }
@@ -206,3 +173,4 @@ JNIEXPORT jobjectArray JNICALL Java_com_tencent_mobilenetssdncnn_MobilenetSSDNcn
 }
 
 }
+
