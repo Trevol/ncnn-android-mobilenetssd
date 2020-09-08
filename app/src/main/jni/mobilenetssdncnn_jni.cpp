@@ -29,12 +29,17 @@
 static ncnn::Net mobilenetssd;
 
 
-
 extern "C" {
 
 // public native boolean Init(AssetManager mgr);
-JNIEXPORT jboolean JNICALL Java_com_tencent_mobilenetssdncnn_MobilenetSSDNcnn_Init(JNIEnv* env, jobject thiz, jobject assetManager)
-{
+JNIEXPORT jboolean JNICALL
+Java_com_tencent_mobilenetssdncnn_MobilenetSSDNcnn_Init(JNIEnv *env, jobject thiz,
+                                                        jobject assetManager) {
+    static bool initialized = false;
+    if (initialized) {
+        return JNI_TRUE;
+    }
+
     static ncnn::UnlockedPoolAllocator g_blob_pool_allocator;
     static ncnn::PoolAllocator g_workspace_pool_allocator;
 
@@ -49,15 +54,14 @@ JNIEXPORT jboolean JNICALL Java_com_tencent_mobilenetssdncnn_MobilenetSSDNcnn_In
     if (ncnn::get_gpu_count() != 0)
         opt.use_vulkan_compute = true;
 
-    AAssetManager* mgr = AAssetManager_fromJava(env, assetManager);
+    AAssetManager *mgr = AAssetManager_fromJava(env, assetManager);
 
     mobilenetssd.opt = opt;
 
     // init param
     {
         int ret = mobilenetssd.load_param(mgr, "mobilenet_ssd_voc_ncnn.param");
-        if (ret != 0)
-        {
+        if (ret != 0) {
             __android_log_print(ANDROID_LOG_DEBUG, "MobilenetSSDNcnn", "load_param failed");
             return JNI_FALSE;
         }
@@ -66,34 +70,29 @@ JNIEXPORT jboolean JNICALL Java_com_tencent_mobilenetssdncnn_MobilenetSSDNcnn_In
     // init bin
     {
         int ret = mobilenetssd.load_model(mgr, "mobilenet_ssd_voc_ncnn.bin");
-        if (ret != 0)
-        {
+        if (ret != 0) {
             __android_log_print(ANDROID_LOG_DEBUG, "MobilenetSSDNcnn", "load_model failed");
             return JNI_FALSE;
         }
     }
 
-    // init jni glue
-    jclass localObjCls = env->FindClass("com/tencent/mobilenetssdncnn/Obj");
-    objectMeta.objCls = reinterpret_cast<jclass>(env->NewGlobalRef(localObjCls));
-
-    objectMeta.constructorId = env->GetMethodID(objectMeta.objCls, "<init>", "(Lcom/tencent/mobilenetssdncnn/Obj;)V");
-
-    objectMeta.xId = env->GetFieldID(objectMeta.objCls, "x", "F");
-    objectMeta.yId = env->GetFieldID(objectMeta.objCls, "y", "F");
-    objectMeta.wId = env->GetFieldID(objectMeta.objCls, "w", "F");
-    objectMeta.hId = env->GetFieldID(objectMeta.objCls, "h", "F");
-    objectMeta.labelId = env->GetFieldID(objectMeta.objCls, "label", "Ljava/lang/String;");
-    objectMeta.probId = env->GetFieldID(objectMeta.objCls, "prob", "F");
+    initialized = true;
 
     return JNI_TRUE;
 }
 
 // public native Obj[] Detect(Bitmap bitmap, boolean use_gpu);
-JNIEXPORT jobjectArray JNICALL Java_com_tencent_mobilenetssdncnn_MobilenetSSDNcnn_Detect(JNIEnv* env, jobject thiz, jobject bitmap, jboolean use_gpu)
-{
-    if (use_gpu == JNI_TRUE && ncnn::get_gpu_count() == 0)
-    {
+JNIEXPORT jobjectArray JNICALL
+Java_com_tencent_mobilenetssdncnn_MobilenetSSDNcnn_Detect(JNIEnv *env, jobject thiz, jobject bitmap,
+                                                          jboolean use_gpu) {
+    static const char *class_names[] = {"background",
+                                        "aeroplane", "bicycle", "bird", "boat",
+                                        "bottle", "bus", "car", "cat", "chair",
+                                        "cow", "diningtable", "dog", "horse",
+                                        "motorbike", "person", "pottedplant",
+                                        "sheep", "sofa", "train", "tvmonitor"};
+
+    if (use_gpu == JNI_TRUE && ncnn::get_gpu_count() == 0) {
         return NULL;
         //return env->NewStringUTF("no vulkan capable gpu");
     }
@@ -107,14 +106,14 @@ JNIEXPORT jobjectArray JNICALL Java_com_tencent_mobilenetssdncnn_MobilenetSSDNcn
     if (info.format != ANDROID_BITMAP_FORMAT_RGBA_8888)
         return NULL;
 
-    // ncnn from bitmap
-    ncnn::Mat in = ncnn::Mat::from_android_bitmap_resize(env, bitmap, ncnn::Mat::PIXEL_BGR, 300, 300);
+    ncnn::Mat in = ncnn::Mat::from_android_bitmap_resize(
+            env, bitmap, ncnn::Mat::PIXEL_BGR,
+            300, 300);
 
-    // mobilenetssd
     std::vector<Object> objects;
     {
         const float mean_vals[3] = {127.5f, 127.5f, 127.5f};
-        const float norm_vals[3] = {1.0/127.5,1.0/127.5,1.0/127.5};
+        const float norm_vals[3] = {1.0 / 127.5, 1.0 / 127.5, 1.0 / 127.5};
         in.substract_mean_normalize(mean_vals, norm_vals);
 
         ncnn::Extractor ex = mobilenetssd.create_extractor();
@@ -126,12 +125,12 @@ JNIEXPORT jobjectArray JNICALL Java_com_tencent_mobilenetssdncnn_MobilenetSSDNcn
         ncnn::Mat out;
         ex.extract("detection_out", out);
 
-        for (int i=0; i<out.h; i++)
-        {
-            const float* values = out.row(i);
+        for (int i = 0; i < out.h; i++) {
+            const float *values = out.row(i);
 
             Object object;
-            object.label = values[0];
+            object.labelId = values[0];
+            object.label = class_names[object.labelId];
             object.prob = values[1];
             object.x = values[2] * width;
             object.y = values[3] * height;
@@ -142,29 +141,8 @@ JNIEXPORT jobjectArray JNICALL Java_com_tencent_mobilenetssdncnn_MobilenetSSDNcn
         }
     }
 
-    // objects to Obj[]
-    static const char* class_names[] = {"background",
-        "aeroplane", "bicycle", "bird", "boat",
-        "bottle", "bus", "car", "cat", "chair",
-        "cow", "diningtable", "dog", "horse",
-        "motorbike", "person", "pottedplant",
-        "sheep", "sofa", "train", "tvmonitor"};
 
-    jobjectArray jObjArray = env->NewObjectArray(objects.size(), objectMeta.objCls, NULL);
-
-    for (size_t i=0; i<objects.size(); i++)
-    {
-        jobject jObj = env->NewObject(objectMeta.objCls, objectMeta.constructorId, thiz);
-
-        env->SetFloatField(jObj, objectMeta.xId, objects[i].x);
-        env->SetFloatField(jObj, objectMeta.yId, objects[i].y);
-        env->SetFloatField(jObj, objectMeta.wId, objects[i].w);
-        env->SetFloatField(jObj, objectMeta.hId, objects[i].h);
-        env->SetObjectField(jObj, objectMeta.labelId, env->NewStringUTF(class_names[objects[i].label]));
-        env->SetFloatField(jObj, objectMeta.probId, objects[i].prob);
-
-        env->SetObjectArrayElement(jObjArray, i, jObj);
-    }
+    jobjectArray jObjArray = toJObjArray(env, thiz, objects);
 
     double elasped = ncnn::get_current_time() - start_time;
     __android_log_print(ANDROID_LOG_DEBUG, "MobilenetSSDNcnn", "%.2fms   detect", elasped);
@@ -173,4 +151,3 @@ JNIEXPORT jobjectArray JNICALL Java_com_tencent_mobilenetssdncnn_MobilenetSSDNcn
 }
 
 }
-

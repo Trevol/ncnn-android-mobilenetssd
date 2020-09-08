@@ -35,7 +35,14 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden -fvisibility-inlines
 # disable rtti and exceptions
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -fno-exceptions")
 
-add_library(ncnndetectors SHARED Object.h mobilenetssdncnn_jni.cpp mobilenetv2ssdlitencnn_jni.cpp ncnn_lifecycle.cpp)
+add_library(ncnndetectors SHARED
+        ncnn_lifecycle.cpp
+        Object.cpp
+        mobilenetv2ssdlitencnn_jni.cpp
+        mobilenetssdncnn_jni.cpp
+        yolov3ncnn_jni.cpp
+        yolov4ncnn_jni.cpp
+        )
 #add_library(ncnndetectors SHARED mobilenetv2ssdlitencnn_jni.cpp)
 
 target_link_libraries(ncnndetectors

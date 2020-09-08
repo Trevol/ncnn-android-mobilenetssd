@@ -29,8 +29,13 @@ import android.widget.Button;
 import android.widget.ImageView;
 
 import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 
 public class MainActivity extends Activity {
+    static {
+        Obj.jniInit();
+    }
     private static final int SELECT_IMAGE = 1;
 
     private ImageView imageView;
@@ -48,7 +53,6 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
 
-
         boolean ret_init = ncnn.Init(getAssets());
         if (!ret_init) {
             Log.e("MainActivity", "mobilenetssdncnn Init failed");
@@ -58,6 +62,15 @@ public class MainActivity extends Activity {
         imageView = (ImageView) findViewById(R.id.imageView);
         imageViewResult = (ImageView) findViewById(R.id.imageViewResult);
 
+        try (InputStream stream = getAssets().open("train1.jpg")) {
+            bitmap = BitmapFactory.decodeStream(stream);
+            yourSelectedImage = bitmap.copy(Bitmap.Config.ARGB_8888, true);
+            imageView.setImageBitmap(bitmap);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
         Button buttonImage = (Button) findViewById(R.id.buttonImage);
         buttonImage.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -65,6 +78,15 @@ public class MainActivity extends Activity {
                 Intent i = new Intent(Intent.ACTION_PICK);
                 i.setType("image/*");
                 startActivityForResult(i, SELECT_IMAGE);
+            }
+        });
+
+
+        findViewById(R.id.buttonClearResult).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View arg0) {
+                imageViewResult.setImageDrawable(null);
+                //imageViewResult.postInvalidate();
             }
         });
 
