@@ -43,7 +43,7 @@ public class MainActivity extends Activity {
     private Bitmap bitmap = null;
     private Bitmap yourSelectedImage = null;
 
-    private MobilenetV2SSDliteNcnn ncnn = new MobilenetV2SSDliteNcnn();
+    private YoloV3Ncnn ncnn = new YoloV3Ncnn();
 
     /**
      * Called when the activity is first created.
@@ -62,7 +62,7 @@ public class MainActivity extends Activity {
         imageView = (ImageView) findViewById(R.id.imageView);
         imageViewResult = (ImageView) findViewById(R.id.imageViewResult);
 
-        try (InputStream stream = getAssets().open("train1.jpg")) {
+        try (InputStream stream = getAssets().open("20200724_095620_letterbox_320.jpg")) {
             bitmap = BitmapFactory.decodeStream(stream);
             yourSelectedImage = bitmap.copy(Bitmap.Config.ARGB_8888, true);
             imageView.setImageBitmap(bitmap);
